@@ -43,7 +43,7 @@
             android:exported="false"
             android:launchMode="singleInstance"
             android:excludeFromRecents="true"
-            android:taskAffinity="top.sakari.wallsetter.lockscreen"
+            android:taskAffinity="net.ankio.koreader.lockscreen"
             android:showWhenLocked="true"
             android:screenOrientation="portrait"
             android:resizeableActivity="false"

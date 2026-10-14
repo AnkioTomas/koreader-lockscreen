@@ -1,4 +1,4 @@
-package top.sakari.wallsetter
+package net.ankio.koreader
 
 import android.content.Context
 

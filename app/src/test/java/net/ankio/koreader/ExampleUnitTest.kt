@@ -1,4 +1,4 @@
-package top.sakari.wallsetter
+package net.ankio.koreader
 
 import org.junit.Test
 

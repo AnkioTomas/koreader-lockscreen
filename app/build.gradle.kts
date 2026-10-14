@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "top.sakari.wallsetter"
+    namespace = "net.ankio.koreader"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -11,7 +11,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "top.sakari.wallsetter"
+        applicationId = "net.ankio.koreader"
         minSdk = 27
         targetSdk = 36
         versionCode = 3
