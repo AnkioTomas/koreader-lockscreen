@@ -1,4 +1,4 @@
-<p align="center"><img src="app/src/main/res/artwork/C1.jpg" width="160" alt="logo"></p>
+<p align="center"><img src="artwork/C1.jpg" width="160" alt="logo"></p>
 
 # KOReader 锁屏显示
 
