@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 
@@ -25,15 +26,18 @@ object KeepAlive {
     /** 安排下一次检查，delay 毫秒后触发（Doze 下也会触发）。 */
     fun schedule(c: Context, delay: Long = INTERVAL) {
         val am = c.getSystemService(AlarmManager::class.java) ?: return
-        runCatching {
-            am.setExactAndAllowWhileIdle(
-                AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + delay, pi(c)
-            )
-        }.onFailure {
-            // Android 12+ 无精确闹钟权限时退化为非精确
-            am.setAndAllowWhileIdle(
-                AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + delay, pi(c)
-            )
+        val at = SystemClock.elapsedRealtime() + delay
+        val exactAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
+        try {
+            if (exactAllowed) {
+                am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi(c))
+            } else {
+                // Android 12+ 未授予精确闹钟权限：退化为非精确闹钟
+                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi(c))
+            }
+        } catch (e: SecurityException) {
+            Log.w(TAG, "exact alarm denied, fallback", e)
+            am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, at, pi(c))
         }
     }
 
