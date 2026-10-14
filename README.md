@@ -1,75 +1,66 @@
-# WallSetter
+<p align="center"><img src="app/src/main/res/artwork/C1.jpg" width="160" alt="logo"></p>
 
-A lightweight Android wallpaper utility that supports **manual image selection**, **system share flow**, and **broadcast-based automation**.
+# KOReader 锁屏显示
 
-## Features
+一个极简的 Android 锁屏工具，专为墨水屏/阅读器设备上的 [KOReader](https://github.com/koreader/koreader) 设计，只做两件事：
 
-- **Manually pick and apply wallpapers**
-  - Select an image inside the app
-  - Preview before applying
-  - Apply with one tap
-- **Target selection**
-  - Home + Lock (`both`)
-  - Home only (`home`)
-  - Lock only (`lock`)
-- **Share images from other apps**
-  - Share an image from Gallery/File Manager
-  - Choose `WallSetter` to continue the wallpaper flow
-- **Broadcast API for automation**
-  - Send a broadcast intent with image path and target
-- **Large image optimization**
-  - Downsamples oversized images during decoding
-  - Uses centered crop hint based on screen ratio to reduce memory pressure
+1. **锁屏显示**：息屏时在锁屏上全屏显示一张图片（默认是 KOReader 生成的屏保图）。
+2. **解锁打开 KOReader**：解锁后自动关闭锁屏页并拉起 KOReader。
 
-## Usage
+通过前台服务常驻运行，无需 MacroDroid 等自动化工具。
 
-### 1) Manual setup
+## 工作原理
 
-1. Open the app and tap **Select Image**.
-2. Choose a target: `Home + Lock` / `Home only` / `Lock only`.
-3. Tap **Set Wallpaper**.
+- `LockService` 是一个前台服务，动态注册 `SCREEN_OFF` / `USER_PRESENT` 广播：
+  - 息屏时启动 `LockScreenActivity`（`showWhenLocked`），全屏显示图片；
+  - 解锁后关闭锁屏页并启动 KOReader。
+- 点击锁屏图片会调用 `requestDismissKeyguard` 进入系统解锁流程；返回键已屏蔽。
+- 图片仅在路径、修改时间或大小变化时重新解码，避免亮屏闪烁。
+- `BootReceiver` 开机后自动恢复服务。
 
-### 2) Share from another app
+## 系统要求
 
-1. Select an image in Gallery or File Manager.
-2. Tap **Share**.
-3. Choose `WallSetter`.
-4. Confirm target and apply wallpaper.
+- Android 8.1 及以上（minSdk 27，targetSdk 36）
+- 已安装 KOReader（默认包名 `org.koreader.launcher`）
 
-### 3) Broadcast call (automation)
+## 使用
 
-- **Action**: `top.sakari.wallsetter.SET_WALLPAPER`
-- **Extras**:
-  - `path`: absolute image path (**required**)
-  - `target`: `home` / `lock` / `both` (optional, default is `both`)
+1. 安装后打开「锁屏显示」，授予存储权限和通知权限。
+2. 设置**图片路径**，默认：`/storage/emulated/0/koreader/.moon/screensaver/compose.png`
+3. 设置**解锁后启动的包名**，默认：`org.koreader.launcher`
+4. 点击 **保存并启动服务**。可用 **预览锁屏图片** 检查效果，**停止服务** 关闭功能。
 
-Example:
+## 权限与系统设置
 
-- Action: `top.sakari.wallsetter.SET_WALLPAPER`
-- Extras:
-  - `path=/storage/emulated/0/Pictures/demo.jpg`
-  - `target=both`
+| 权限 / 设置 | 用途 |
+| --- | --- |
+| 存储权限 | 读取锁屏图片（Android 10 使用 `requestLegacyExternalStorage`） |
+| 前台服务 / 通知 | 保持服务常驻 |
+| 开机自启 | 开机后恢复服务 |
+| 悬浮窗 / 后台弹出界面 | 息屏时从后台拉起锁屏页 |
 
-## Permissions
+**MIUI 等国产系统**还需要手动开启：
 
-The app uses these permissions:
+- 「锁屏显示」权限和「后台弹出界面」权限（也可以用 adb 设置）：
+  ```bash
+  adb shell appops set net.ankio.koreader 10021 allow   # 锁屏显示
+  adb shell appops set net.ankio.koreader 10020 allow   # 后台弹出界面
+  ```
+- 自启动：允许
+- 省电策略：无限制
 
-- `android.permission.SET_WALLPAPER`: apply system wallpaper
-- `android.permission.READ_EXTERNAL_STORAGE`: compatibility for Android 12 and below
-- `android.permission.READ_MEDIA_IMAGES`: image access on Android 13+
+## 构建
 
-## Development
+```bash
+./gradlew assembleDebug
+```
 
-- **Stack**: Kotlin + Jetpack Compose + Material 3 + Coil
-- **Min SDK**: API 28 (Android 9.0)
-- **Target SDK**: API 36
+需要 JDK 17+（可以直接用 Android Studio 自带的 JBR）。项目已配置阿里云 Maven 镜像。
 
-## Notes
+## 致谢
 
-- For broadcast calls, make sure `path` exists and is readable; otherwise wallpaper setting will fail.
-- Wallpaper cropping behavior can vary slightly across OEM implementations.
-- For share flow, ensure MIME type is `image/*`.
+本项目基于 [sakarie9/WallSetter](https://github.com/sakarie9/WallSetter) 改写。
 
----
+## 许可证
 
-If you want, I can further enhance this README for GitHub presentation (badges, screenshot section, extended FAQ, and changelog template).
+[GPL-3.0](LICENSE)
