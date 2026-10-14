@@ -32,6 +32,7 @@ class LockService : Service() {
         }
 
         fun stop(context: Context) {
+            KeepAlive.cancel(context)
             context.stopService(Intent(context, LockService::class.java))
         }
     }
@@ -54,10 +55,23 @@ class LockService : Service() {
         })
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 被系统 START_STICKY 重建时也重新挂到前台
+        startForeground(NOTIFICATION_ID, buildNotification())
+        KeepAlive.schedule(this)
+        return START_STICKY
+    }
+
+    /** 最近任务里被划掉：1 秒后由闹钟拉起。 */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        if (Prefs.enabled(this)) KeepAlive.schedule(this, 1000)
+    }
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(screenReceiver) }
+        // 非用户主动关闭时被销毁：尽快重启
+        if (Prefs.enabled(this)) KeepAlive.schedule(this, 2000)
         super.onDestroy()
     }
 
@@ -89,7 +103,7 @@ class LockService : Service() {
         val nm = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "锁屏服务", NotificationManager.IMPORTANCE_MIN)
+                NotificationChannel(CHANNEL_ID, "锁屏服务", NotificationManager.IMPORTANCE_LOW)
             )
         }
         val pi = PendingIntent.getActivity(
@@ -102,6 +116,7 @@ class LockService : Service() {
             .setContentTitle("锁屏显示运行中")
             .setContentIntent(pi)
             .setOngoing(true)
-            .build()
+            .setShowWhen(false)
+            .build().apply { flags = flags or Notification.FLAG_NO_CLEAR }
     }
 }

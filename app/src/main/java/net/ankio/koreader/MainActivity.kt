@@ -58,7 +58,7 @@ class MainActivity : Activity() {
         setContentView(root, ViewGroup.LayoutParams(-1, -1))
 
         requestStorage()
-        if (Prefs.enabled(this)) LockService.start(this)
+        KeepAlive.ensure(this)
     }
 
     override fun onResume() {
@@ -68,7 +68,7 @@ class MainActivity : Activity() {
 
     private fun save(enable: Boolean) {
         Prefs.save(this, imageInput.text.toString().trim(), packageInput.text.toString().trim(), enable)
-        if (enable) LockService.start(this) else LockService.stop(this)
+        if (enable) { KeepAlive.ensure(this); requestIgnoreBattery() } else LockService.stop(this)
         Toast.makeText(this, if (enable) "服务已启动" else "服务已停止", Toast.LENGTH_SHORT).show()
         refreshStatus()
     }
@@ -76,7 +76,8 @@ class MainActivity : Activity() {
     private fun refreshStatus() {
         status.text = buildString {
             append("服务：").append(if (Prefs.enabled(this@MainActivity)) "开启" else "关闭").append('\n')
-            append("存储权限：").append(if (hasStorage()) "已授予" else "未授予")
+            append("存储权限：").append(if (hasStorage()) "已授予" else "未授予").append('\n')
+            append("电池优化：").append(if (ignoringBattery()) "已忽略" else "未忽略（可能被系统杀掉）")
         }
     }
 
@@ -93,6 +94,18 @@ class MainActivity : Activity() {
             }.onFailure { startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
         } else {
             requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 1)
+        }
+    }
+
+    private fun ignoringBattery(): Boolean =
+        getSystemService(android.os.PowerManager::class.java)?.isIgnoringBatteryOptimizations(packageName) == true
+
+    @android.annotation.SuppressLint("BatteryLife")
+    private fun requestIgnoreBattery() {
+        if (ignoringBattery()) return
+        runCatching {
+            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                Uri.parse("package:$packageName")))
         }
     }
 }

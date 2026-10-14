@@ -38,6 +38,7 @@ class LockScreenActivity : Activity() {
         super.onCreate(savedInstanceState)
         setShowWhenLocked(true)
         current = WeakReference(this)
+        KeepAlive.ensure(this)
         imageView = ImageView(this).apply {
             setBackgroundColor(Color.BLACK)
             scaleType = ImageView.ScaleType.CENTER_CROP
