@@ -2,6 +2,10 @@ package net.ankio.koreader
 
 import android.app.Activity
 import android.app.KeyguardManager
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import android.os.PowerManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -27,6 +31,8 @@ class LockScreenActivity : Activity() {
     private lateinit var imageView: ImageView
     private var bitmap: Bitmap? = null
     private var loadedKey: String? = null
+    private var unlocking = false
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,12 +58,38 @@ class LockScreenActivity : Activity() {
         // 屏蔽返回键：只能点击图片解锁
     }
 
+    /**
+     * 上滑（Home 手势）/ 最近任务会把锁屏页切走，露出系统锁屏。
+     * 只要还在锁定、亮屏且不是我们主动解锁，就立刻把自己拉回前台。
+     */
+    override fun onStop() {
+        super.onStop()
+        if (isFinishing || unlocking) return
+        val km = getSystemService(KeyguardManager::class.java) ?: return
+        val pm = getSystemService(PowerManager::class.java) ?: return
+        if (!km.isKeyguardLocked || !pm.isInteractive) return
+        handler.postDelayed({ bringToFront() }, 150)
+    }
+
+    private fun bringToFront() {
+        if (isFinishing || isDestroyed || unlocking) return
+        val km = getSystemService(KeyguardManager::class.java)
+        if (km?.isKeyguardLocked != true) return
+        try {
+            startActivity(Intent(this, LockScreenActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+        } catch (e: Throwable) {
+            Log.e(TAG, "bringToFront failed", e)
+        }
+    }
+
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) hideSystemBars()
     }
 
     override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
         if (current?.get() === this) current = null
         imageView.setImageDrawable(null)
         bitmap?.recycle()
@@ -69,8 +101,11 @@ class LockScreenActivity : Activity() {
     private fun unlock() {
         val km = getSystemService(KeyguardManager::class.java)
         if (km == null || !km.isKeyguardLocked) { finish(); return }
+        unlocking = true
         km.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
             override fun onDismissSucceeded() { finish() }
+            override fun onDismissCancelled() { unlocking = false }
+            override fun onDismissError() { unlocking = false }
         })
     }
 
